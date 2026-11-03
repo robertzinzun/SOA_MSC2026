@@ -1,0 +1,74 @@
+services:
+
+  # Servicio de base de datos
+  db:
+    image: mysql:8.2
+    container_name: mysql_server
+
+    restart: always
+
+    env_file:
+      - .env
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+    ports:
+      - "3309:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+    networks:
+      - app_network
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -u root -p"$${MYSQL_ROOT_PASSWORD}" --silent
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+
+  # Servicio de FastAPI
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: fastapi_app
+
+    restart: always
+
+    env_file:
+      - .env
+
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+
+    ports:
+      - "8080:8080"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - app_network
+
+
+# Volumen para persistencia de datos
+volumes:
+  mysql_data:
+
+
+# Red interna
+networks:
+  app_network:
+    driver: bridge
